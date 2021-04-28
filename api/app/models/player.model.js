@@ -12,6 +12,9 @@ module.exports = (sequelize, Sequelize) => {
         role: {
         type: Sequelize.STRING
       },
+        alive: {
+        type: Sequelize.BOOLEAN
+      },
         joined: {
         type: Sequelize.BOOLEAN
       }

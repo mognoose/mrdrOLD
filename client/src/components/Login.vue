@@ -35,26 +35,26 @@ export default {
   data(){
     return {
       username: "",
-      room: ""
+      room: "",
+      sessionData: {}
     }
   },
   methods: {
     login(){
       console.log(this.username, this.room);
-      console.log(process.env.API)
 
       axios.post('http://localhost:8080/api/players', {
         name: this.username,
         room: this.room
       })
-      .then(function (response) {
+      .then(response => {
         console.log(response);
-        this.$emit('login:data', {name: this.username, room: this.room})
+        this.sessionData = response.data
       })
-      .catch(function (error) {
-        console.log(error);
+      .catch(error => {
+        return console.log(error);
       })
-
+      this.$emit('login:data', this.sessionData)
 
     }
   }

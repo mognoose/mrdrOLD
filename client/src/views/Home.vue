@@ -1,7 +1,7 @@
 <template>
   <div class="home">
     <Login v-if="!joined" @login:data="login($event)" />
-    <Game v-else :username="name" :room="room" />
+    <Game v-else :username="name" :room="room" @logout="(logout())"/>
   </div>
 </template>
 

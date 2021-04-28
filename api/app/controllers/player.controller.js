@@ -16,6 +16,7 @@ exports.create = (req, res) => {
     name: req.body.name,
     room: req.body.room,
     joined: true,
+    alive: true,
     points: 0
   };
 

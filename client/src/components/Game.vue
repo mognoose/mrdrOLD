@@ -8,7 +8,7 @@
           <h4>{{this.username}}</h4>
           <h4>{{this.room}}</h4>
             <div class="form-group">
-              <button class="btn btn-outline-danger">Log out</button>
+              <button class="btn btn-outline-danger" @click="$emit('logout')">Log out</button>
             </div>
         </div>
       </div>
