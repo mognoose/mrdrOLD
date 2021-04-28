@@ -35,7 +35,8 @@ exports.create = (req, res) => {
 
 exports.findAll = (req, res) => {
   const room = req.query.room;
-  var condition = room ? { room: { [Op.like]: `%${room}%` } } : null;
+  // var condition = room ? { room: { [Op.like]: `%${room}%` } } : null;
+  var condition = room ? { room: room } : null;
 
   Player.findAll({ where: condition })
     .then(data => {
@@ -124,5 +125,5 @@ exports.deleteAll = (req, res) => {
         message:
           err.message || "Some error occurred while removing all Players."
       });
-    });   
+    });
 }

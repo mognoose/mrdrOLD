@@ -1,7 +1,7 @@
 <template>
   <div class="home">
     <Login v-if="!joined" @login:data="login($event)" />
-    <Game v-else :username="name" :room="room" @logout="(logout())"/>
+    <Game v-else :player="player" @logout="logout()"/>
   </div>
 </template>
 
@@ -9,6 +9,7 @@
 // @ is an alias to /src
 import Login from '@/components/Login.vue'
 import Game from '@/components/Game.vue'
+import axios from 'axios';
 
 export default {
   name: 'Home',
@@ -19,17 +20,24 @@ export default {
   data(){
     return {
       joined: false,
-      room: "",
-      name: ""
+      player: {},
     }
   },
   methods:{
     login(data){
       this.joined = true
-      this.name = data.name
-      this.room = data.room
-      console.log(this.name);
-      console.log(this.room);
+      this.player = data
+    },
+    logout(){
+      console.log(this.player.id)
+      axios.delete('http://localhost:8080/api/players/'+this.player.id)
+      .then(response => {
+        console.log(response);
+      })
+      .catch(error => {
+        return console.log(error);
+      })
+      this.joined = false
     }
   }
 }

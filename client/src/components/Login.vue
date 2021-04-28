@@ -36,7 +36,6 @@ export default {
     return {
       username: "",
       room: "",
-      sessionData: {}
     }
   },
   methods: {
@@ -49,12 +48,11 @@ export default {
       })
       .then(response => {
         console.log(response);
-        this.sessionData = response.data
+        this.$emit('login:data', response.data)
       })
       .catch(error => {
         return console.log(error);
       })
-      this.$emit('login:data', this.sessionData)
 
     }
   }

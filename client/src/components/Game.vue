@@ -5,8 +5,12 @@
         <div class="card p-5 text-center">
           <img alt="MRDR logo" src="../assets/logo.svg" class="w-50">
           <h3>MRDR</h3>
-          <h4>{{this.username}}</h4>
-          <h4>{{this.room}}</h4>
+          <h4>ROOM: {{player.room}}</h4>
+          <h4>PLAYERS:</h4>
+          <div v-for="player in players" :key="player.id">
+            {{player.name}}
+
+          </div>
             <div class="form-group">
               <button class="btn btn-outline-danger" @click="$emit('logout')">Log out</button>
             </div>
@@ -17,20 +21,29 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   name: 'HelloWorld',
   props: {
-    username: String,
-    room: String
+    player: Object,
+  },
+  mounted(){
+    this.getPlayers();
   },
   data(){
     return {
+      players: []
     }
   },
   methods: {
-    login(){
-      console.log(this.username, this.room);
-      this.$emit('login:data', {name: this.username, room: this.room})
+    async getPlayers(){
+      try {
+        const response = await axios.get('http://localhost:8080/api/players/?room='+this.player.room)
+        this.players = response.data
+      } catch (e) {
+        this.errors.push(e)
+      }
     }
   }
 }
