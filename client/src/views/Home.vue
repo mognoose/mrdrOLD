@@ -42,3 +42,11 @@ export default {
   }
 }
 </script>
+<style>
+html, body, .home, .container, .row{
+  background-color: #121212;
+}
+.col .card{
+  background-color: #212121;
+}
+</style>

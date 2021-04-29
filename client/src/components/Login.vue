@@ -3,7 +3,7 @@
     <div class="row mt-5">
       <div class="col">
         <div class="card p-5 text-center">
-          <img alt="MRDR logo" src="../assets/logo.svg" class="w-50">
+          <img alt="MRDR logo" src="../assets/logo.svg" class="logo">
           <h3>MRDR</h3>
           <form class="p-5" @submit.prevent="login()">
             <div class="form-group">
@@ -68,9 +68,16 @@ export default {
 img{
   margin: 0 auto;
 }
+.logo{
+  background-color: #FFFFFF;
+  width: 10em;
+  height: 10em;
+  padding: 1em;
+  border-radius: 100%;
+}
 h3{
   font-weight: bold;
-  color: black;
+  color: #FFFFFF;
 }
 input{
   font-size: 2em;
@@ -79,6 +86,7 @@ input{
 label{
   font-weight: bold;
   font-size: 1.2em;
+  color: #FFFFFF;
 }
 
 </style>

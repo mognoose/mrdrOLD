@@ -1,20 +1,41 @@
 <template>
   <div class="container">
-    <div class="row mt-5">
-      <div class="col">
-        <div class="card p-5 text-center">
-          <img alt="MRDR logo" src="../assets/logo.svg" class="w-50">
-          <h3>MRDR</h3>
-          <h4>ROOM: {{player.room}}</h4>
+    <div class="row">
+      <div class="col text-center">
+
+        <div class="row header">
+          <div class="col vcenter">
+            <h3 class="w-100">
+              <img alt="MRDR logo" src="../assets/logo.svg" class="ingamelogo">
+              MRDR
+            </h3>
+          </div>
+          <div class="col vcenter">
+            <h4 class="w-100">
+              ROOM: {{player.room}}
+            </h4>
+          </div>
+          <div class="col vcenter">
+            <div class="w-100">
+              <button class="btn btn-outline-danger" @click="$emit('logout')">Leave</button>
+            </div>
+          </div>
+        </div>
+
+
           <h4>PLAYERS:</h4>
-          <div v-for="player in players" :key="player.id">
-            {{player.name}}
+          <div class="row">
+            <div class="col mb-4" v-for="player in players" :key="player.id">
+              <div class="profilepic">
+                <img alt="MRDR logo" src="../assets/logo.svg">
+              </div>
+              <p class="playername">
+                {{player.name}}
+              </p>
+          </div>
 
           </div>
-            <div class="form-group">
-              <button class="btn btn-outline-danger" @click="$emit('logout')">Log out</button>
-            </div>
-        </div>
+
       </div>
     </div>
   </div>
@@ -24,7 +45,7 @@
 import axios from 'axios';
 
 export default {
-  name: 'HelloWorld',
+  name: 'Game',
   props: {
     player: Object,
   },
@@ -51,24 +72,51 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-.card {
-  margin: 0 auto;
-  max-width: 35em;
-}
-img{
-  margin: 0 auto;
-}
-h3{
-  font-weight: bold;
-  color: black;
-}
-input{
-  font-size: 2em;
-  text-align: center;
-}
-label{
-  font-weight: bold;
-  font-size: 1.2em;
-}
-
+  .header{
+    background-color: #212121;
+    border-radius: 1.3em;
+    padding: 1em;
+    margin: 1em;
+  }
+  .ingamelogo{
+    width: 2em;
+    background-color: #FFFFFF;
+    border-radius: 100%;
+    height: 2em;
+    padding: 0.2em;
+  }
+  h3, h4{
+    font-weight: bold;
+    color: #FFFFFF;
+  }
+  input{
+    font-size: 2em;
+    text-align: center;
+  }
+  label{
+    font-weight: bold;
+    font-size: 1.2em;
+  }
+  .profilepic{
+    margin: 0 auto;
+    border: 1px solid #666;
+    width: 10em;
+    height: 10em;
+    padding: 1em;
+  }
+  .profilepic img{
+    width: 100%;
+    height: 100%;
+  }
+  .playername{
+    font-size: 1.5em;
+    color:#FFFFFF;
+  }
+  .vcenter{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    text-align: center;
+    margin: 0 auto;
+  }
 </style>
