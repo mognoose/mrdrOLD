@@ -25,13 +25,44 @@
 
           <h4>PLAYERS:</h4>
           <div class="row">
-            <div class="col mb-4" v-for="player in players" :key="player.id">
-              <div class="profilepic">
-                <img alt="MRDR logo" src="../assets/logo.svg">
+            <div class="col mb-4" v-for="opponent in players" :key="opponent.id">
+              <div class="card">
+                <p class="playername">
+                  {{opponent.name}}
+                </p>
+                <div class="profilepic" :class="opponent.alive ? 'border-primary' : 'border-secondary'">
+                  <img alt="profilepic" src="../assets/logo.svg">
+                </div>
+                <div class="row p-2">
+                  <div class="col">
+                    <button
+                      class="btn btn-sm"
+                      :class="player.role != 'murderer' ? 'btn-outline-secondary' : 'btn-outline-danger'"
+                      :disabled="player.role != 'murderer'"
+                    >
+                      Murder
+                    </button>
+                  </div>
+                  <div class="col">
+                    <button
+                      class="btn btn-sm"
+                      :class="player.role != 'doctor' ? 'btn-outline-secondary' : 'btn-outline-success'"
+                      :disabled="player.role != 'doctor'"
+                    >
+                      Rescue
+                    </button>
+                  </div>
+                  <div class="col">
+                    <button
+                      class="btn btn-sm"
+                      :class="player.role != 'police' ? 'btn-outline-secondary' : 'btn-outline-primary'"
+                      :disabled="player.role != 'police'"
+                    >
+                      Investigate
+                    </button>
+                  </div>
+                </div>
               </div>
-              <p class="playername">
-                {{player.name}}
-              </p>
           </div>
 
           </div>
@@ -107,6 +138,9 @@ export default {
   .profilepic img{
     width: 100%;
     height: 100%;
+    background-color: #515151;
+    box-shadow: 0px 0px 10px #515151;
+    border-radius: 100%;
   }
   .playername{
     font-size: 1.5em;

@@ -43,7 +43,7 @@ export default {
 }
 </script>
 <style>
-html, body, .home, .container, .row{
+html, body, .home, .container{
   background-color: #121212;
 }
 .col .card{
