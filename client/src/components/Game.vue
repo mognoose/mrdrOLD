@@ -18,6 +18,8 @@
           <div class="col vcenter">
             <div class="w-100">
               <button class="btn btn-outline-danger" @click="$emit('logout')">Leave</button>
+              <button class="btn btn-outline-success ml-2" @click="toggleReady()">Ready</button>
+              <button class="btn btn-outline-success ml-2" @click="getPlayers()">Refresh</button>
             </div>
           </div>
         </div>
@@ -29,8 +31,14 @@
               <div class="card">
                 <p class="playername">
                   {{opponent.name}}
+                  
                 </p>
-                <div class="profilepic" :class="opponent.alive ? 'border-primary' : 'border-secondary'">
+                <div
+                  class="profilepic"
+                  :class="
+                    opponent.ready ? 'border-success' : 'border-secondary'
+                    "
+                  >
                   <img alt="profilepic" src="../assets/logo.svg">
                 </div>
                 <div class="row p-2">
@@ -55,8 +63,8 @@
                   <div class="col">
                     <button
                       class="btn btn-sm"
-                      :class="player.role != 'police' ? 'btn-outline-secondary' : 'btn-outline-primary'"
-                      :disabled="player.role != 'police'"
+                      :class="player.role != 'cop' ? 'btn-outline-secondary' : 'btn-outline-primary'"
+                      :disabled="player.role != 'cop'"
                     >
                       Investigate
                     </button>
@@ -69,11 +77,21 @@
 
       </div>
     </div>
+    <b-modal ref="message-modal" hide-footer :title="message.title">
+      <div class="d-block text-center">
+        <img :alt="player.role+' image'" :src="message.images[player.role]" class="w-50 m-5">
+        <h3>{{message.text}}</h3>
+      </div>
+      <div class="text-center">
+        <b-button class="mt-3" variant="outline-success" @click="hideMessage">OK</b-button>
+      </div>
+    </b-modal>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
+import io from 'socket.io-client'
 
 export default {
   name: 'Game',
@@ -82,10 +100,41 @@ export default {
   },
   mounted(){
     this.getPlayers();
+    this.socket.on('STATUS',data => {
+      this.getPlayers()
+      console.log("SOCKET.IO: "+data)
+    })
+    this.socket.on('READY', async () => {
+      console.log("Everyone is ready!")
+      await this.getPlayers()
+      await this.showMessage("role")
+
+    })
   },
   data(){
     return {
-      players: []
+      players: [],
+      socket: io('localhost:8080'),
+      gameStatus: 'lobby',
+      message: {
+        title: "",
+        text: "",
+        goals: {
+          murderer: "murder everyone and not get caught",
+          doctor: "find and rescue murder victims",
+          cop: "find the murderer",
+        },
+        roles: {
+          murderer: "murderer",
+          doctor: "doctor",
+          cop: "investigator",
+        },
+        images: {
+          murderer: require('/src/assets/images/murderer.png'),
+          doctor: require('/src/assets/images/doctor.png'),
+          cop: require('/src/assets/images/cop.png'),
+        }
+      }
     }
   },
   methods: {
@@ -96,6 +145,42 @@ export default {
       } catch (e) {
         this.errors.push(e)
       }
+      console.log("PLAYER: ", this.player)
+      console.log("PLAYERS: ", this.players)
+
+      const self = this.players.filter(player => player.id == this.player.id)
+      console.log(self)
+      this.player.role = self[0].role
+    },
+    toggleReady(){
+      let ready = true
+      if(this.player.ready) ready = false
+      axios.put('http://localhost:8080/api/players/'+this.player.id, {ready})
+      .then(response => {
+        console.log("AXIOS: "+response.data);
+        this.socket.emit('CHANGE_STATUS', {
+          ready: ready,
+      });
+      })
+      .catch(error => {
+        return console.log(error);
+      })
+
+      this.player.ready = ready
+    },
+    showMessage(type){
+      if(type === "role"){
+        this.message.title = "You are the "+this.message.roles[this.player.role]
+        this.message.text = "Your goal is to "+this.message.goals[this.player.role]
+        
+        this.$refs['message-modal'].show()
+
+      }
+
+    },
+    hideMessage(){
+      this.$refs['message-modal'].hide()
+
     }
   }
 }
@@ -127,6 +212,11 @@ export default {
   label{
     font-weight: bold;
     font-size: 1.2em;
+  }
+  .card{
+    min-width: 280px;
+    width: 285px;
+    margin: 0 auto;
   }
   .profilepic{
     margin: 0 auto;

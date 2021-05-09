@@ -23,13 +23,19 @@ export default {
       player: {},
     }
   },
+  mounted(){
+    this.getLocalData();
+  },
   methods:{
     login(data){
       this.joined = true
       this.player = data
+      // localStorage.setItem('playerId', response.data.id)
+
     },
     logout(){
       console.log(this.player.id)
+      localStorage.removeItem('playerId')
       axios.delete('http://localhost:8080/api/players/'+this.player.id)
       .then(response => {
         console.log(response);
@@ -38,6 +44,20 @@ export default {
         return console.log(error);
       })
       this.joined = false
+    },
+    async getLocalData(){
+      if(localStorage.getItem('playerId')){
+        let id = localStorage.getItem('playerId')
+        await axios.get('http://localhost:8080/api/players/'+id)
+        .then(response => {
+          this.player = response.data
+          this.joined = true
+        })
+        .catch(error => {
+          return console.log(error)
+        })
+        
+      }
     }
   }
 }

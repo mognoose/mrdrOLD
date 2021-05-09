@@ -34,7 +34,7 @@ export default {
   },
   data(){
     return {
-      username: "",
+      username: localStorage.getItem('playerName'),
       room: "",
     }
   },
@@ -49,6 +49,8 @@ export default {
       .then(response => {
         console.log(response);
         this.$emit('login:data', response.data)
+        localStorage.setItem('playerId', response.data.id)
+        localStorage.setItem('playerName', response.data.name)
       })
       .catch(error => {
         return console.log(error);

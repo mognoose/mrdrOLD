@@ -15,6 +15,9 @@ module.exports = (sequelize, Sequelize) => {
         alive: {
         type: Sequelize.BOOLEAN
       },
+        ready: {
+        type: Sequelize.BOOLEAN
+      },
         joined: {
         type: Sequelize.BOOLEAN
       }
