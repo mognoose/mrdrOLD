@@ -46,7 +46,8 @@
                     <button
                       class="btn btn-sm"
                       :class="player.role != 'murderer' ? 'btn-outline-secondary' : 'btn-outline-danger'"
-                      :disabled="player.role != 'murderer'"
+                      :disabled="player.role != 'murderer' || !player.alive"
+                      @click="murder(opponent.id)"
                     >
                       Murder
                     </button>
@@ -55,7 +56,8 @@
                     <button
                       class="btn btn-sm"
                       :class="player.role != 'doctor' ? 'btn-outline-secondary' : 'btn-outline-success'"
-                      :disabled="player.role != 'doctor'"
+                      :disabled="player.role != 'doctor' || !player.alive"
+                      @click="rescue(opponent.id)"
                     >
                       Rescue
                     </button>
@@ -64,7 +66,8 @@
                     <button
                       class="btn btn-sm"
                       :class="player.role != 'cop' ? 'btn-outline-secondary' : 'btn-outline-primary'"
-                      :disabled="player.role != 'cop'"
+                      :disabled="player.role != 'cop' || gameStatus != 'night' || !player.alive"
+                      @click="investigate(opponent.id)"
                     >
                       Investigate
                     </button>
@@ -83,7 +86,8 @@
         <h3>{{message.text}}</h3>
       </div>
       <div class="text-center">
-        <b-button class="mt-3" variant="outline-success" @click="hideMessage">OK</b-button>
+        <b-button v-if="message.waitForCop" class="mt-3" variant="outline-success" @click="investigationReady()">COP OK ({{message.waitForCop}})</b-button>
+        <b-button v-else class="mt-3" variant="outline-success" @click="hideMessage">OK</b-button>
       </div>
     </b-modal>
   </div>
@@ -100,14 +104,19 @@ export default {
   },
   mounted(){
     this.getPlayers();
-    this.socket.on('STATUS',data => {
+    this.socket.on('STATUS',() => {
       this.getPlayers()
-      console.log("SOCKET.IO: "+data)
     })
     this.socket.on('READY', async () => {
-      console.log("Everyone is ready!")
+      this.gameStatus = 'night'
       await this.getPlayers()
-      await this.showMessage("role")
+      await this.showMessage({type: "role"})
+
+    })
+    this.socket.on('SUNRISE', async (data) => {
+      this.gameStatus = 'day'
+      await this.getPlayers()
+      await this.showMessage({type: "morning", data})
 
     })
   },
@@ -133,7 +142,8 @@ export default {
           murderer: require('/src/assets/images/murderer.png'),
           doctor: require('/src/assets/images/doctor.png'),
           cop: require('/src/assets/images/cop.png'),
-        }
+        },
+        waitForCop: false
       }
     }
   },
@@ -145,22 +155,18 @@ export default {
       } catch (e) {
         this.errors.push(e)
       }
-      console.log("PLAYER: ", this.player)
-      console.log("PLAYERS: ", this.players)
 
       const self = this.players.filter(player => player.id == this.player.id)
-      console.log(self)
       this.player.role = self[0].role
     },
     toggleReady(){
       let ready = true
       if(this.player.ready) ready = false
       axios.put('http://localhost:8080/api/players/'+this.player.id, {ready})
-      .then(response => {
-        console.log("AXIOS: "+response.data);
+      .then(() => {
         this.socket.emit('CHANGE_STATUS', {
           ready: ready,
-      });
+        });
       })
       .catch(error => {
         return console.log(error);
@@ -168,19 +174,83 @@ export default {
 
       this.player.ready = ready
     },
-    showMessage(type){
-      if(type === "role"){
+    showMessage(message){
+      if(message.type === "role"){
         this.message.title = "You are the "+this.message.roles[this.player.role]
         this.message.text = "Your goal is to "+this.message.goals[this.player.role]
         
         this.$refs['message-modal'].show()
-
+      }
+      else if(message.type === "investigation"){
+        this.message.title = "You investigated "+message.target
+        this.message.text = "You found out that "+message.target
+        this.message.text += (message.success ? " is the murderer" : " is not the murderer")
+        this.message.waitForCop = true
+        
+        this.$refs['message-modal'].show()
+      }
+      else if(message.type === "murder"){
+        this.message.title = "You stabbed "+message.target
+        this.message.text = "You stabbed "+message.target
+        
+        this.$refs['message-modal'].show()
+      }
+      else if(message.type === "rescue"){
+        this.message.title = "You rescued "+message.target
+        this.message.text = "You saved the life of "+message.target
+        
+        this.$refs['message-modal'].show()
+      }
+      else if(message.type === "morning"){
+        let victim = this.players.filter(player => player.id == message.data.target)
+        victim = victim[0]
+        console.log(victim.name)
+        this.message.title = "It is morning"
+        if(message.data.murder) this.message.text = "Poor "+victim.name+" was found murdered in cold blood"
+        else this.message.text = "Poor "+victim.name+" was stabbed last night. Luckily he survived"
+        
+        this.$refs['message-modal'].show()
       }
 
     },
     hideMessage(){
       this.$refs['message-modal'].hide()
+    },
+    murder(id){
+      const target = this.players.filter(player => player.id === id)
+      this.showMessage({type: "murder", target: target[0].name})
+      this.socket.emit('ACTION_DONE', {
+        action: 'murder',
+        target: id,
+      });
+    },
+    rescue(id){
+      const target = this.players.filter(player => player.id === id)
+      this.showMessage({type: "rescue", target: target[0].name})
+      this.socket.emit('ACTION_DONE', {
+        action: 'rescue',
+        target: id,
+      });
+    },
 
+    investigate(id){
+      this.gameStatus = 'day'
+      let investigation = {
+        type: "investigation",
+        success: false
+      }
+      const target = this.players.filter(player => player.id === id)
+      if(target[0].role === "murderer") investigation.success = true
+      investigation.target = target[0].name
+      this.showMessage(investigation)
+    },
+    investigationReady(){
+      this.socket.emit('ACTION_DONE', {
+        action: 'investigate',
+        target: 0,
+      });
+      this.message.waitForCop = false
+      this.hideMessage()
     }
   }
 }

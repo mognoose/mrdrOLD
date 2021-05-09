@@ -89,11 +89,55 @@ async function getStatuses(room){
 
 }
 
+let murdered
+let saved
+let investigated = false
+let murder = false
+let done = false
+
 io.on('connection', socket =>{
   console.log(socket.id)
+
   socket.on('CHANGE_STATUS', async data => {
     let ready = await getStatuses('test')
     if(ready) io.emit('READY')
     io.emit('STATUS', data)
   })
+
+  socket.on('ACTION_DONE', async data => {
+
+    console.log(data)
+    if(data.action === "murder") murdered = data.target
+    if(data.action === "rescue") saved = data.target
+    if(data.action === "investigate") investigated = true
+
+    if(murdered && saved){
+      done = true
+      if(murdered != saved) {
+        murder = true
+      }
+    }
+
+    if(done && investigated){
+      console.log('murder: '+murder+' murdered: '+murdered)
+      if(murder){
+        await db.sequelize.query("UPDATE `players` SET alive = false WHERE id = "+parseInt(murdered), { type: QueryTypes.UPDATE })
+      }
+      io.emit('SUNRISE', {murder, target: murdered})
+      murdered = null
+      saved = null
+      investigated = false
+      murder = false
+      done = false
+    }
+    console.log('murdered: '+murdered)
+    console.log('saved: '+saved)
+    console.log('murder: '+murder)
+    console.log('done: '+done)
+    console.log("investigated: "+investigated)
+
+    // let ready = await getStatuses('test')
+    // if(ready) io.emit('READY')
+  })
+
 })
