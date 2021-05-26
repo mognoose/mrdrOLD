@@ -4,6 +4,7 @@
   import { each } from "svelte/internal";
   import { fade } from "svelte/transition";
   import { Card } from "sveltestrap/src";
+  import { goto } from '@sapper/app';
 
   // let room = localStorage.getItem("room");
   // let name = localStorage.getItem("name");
@@ -12,35 +13,66 @@
   let room = windowGlobal?.localStorage?.getItem("room");
   let name = windowGlobal?.localStorage?.getItem("name");
 
-  const socket = io("localhost:8080", { extraHeaders: { room, name } });
+  const socket = io("localhost:8080", {
+    extraHeaders: { room: room?.toUpperCase(), name },
+  });
 
+  let ready = false;
   let message = "";
   let messages = [];
   let users = [];
 
   const send = () => {
-    socket.emit("MESSAGE", { name, room, message });
+    socket.emit("MESSAGE", { name, room, message, ready });
     message = "";
     updateScroll();
   };
-  socket.on("USERS", userlist => {
-    users = userlist
-    console.log(userlist)
-  })
+  socket.on("USERS", (userlist) => {
+    users = userlist;
+    console.log(userlist);
+  });
   socket.on(
     "MESSAGE",
-    (msg) => (
+    msg => (
       //(messages = [...messages, msg.name + "@"+msg.room+": " + msg.message]), updateScroll() //WITH ROOM FOR DEBUG
-      (messages = [...messages, msg.name + ": " + msg.message]), updateScroll() //NORMAL
+      (messages = [...messages, msg]),
+      updateScroll() //NORMAL
     )
+  );
+  socket.on(
+    "ROLE",
+    role => messages = [...messages, {name: 'Server', message: 'You are the '+role.role}]
   );
 
   function updateScroll() {
     setTimeout(() => {
       let element = document.getElementById("messages");
       element.scrollTop = element.scrollHeight;
-      console.log("Scrolled");
     }, 100);
+  }
+
+  function onReady() {
+    ready = !ready;
+    socket.emit("READY", { name, room, ready });
+  }
+
+  function onLeave() {
+    socket.emit("LEAVE", { name, room, id: socket.id});
+    goto('/')
+  }
+
+  function statusColor(name){
+    if(!name) return
+    let color = 'text-normal'
+    let statuses = users.map(user => {
+      if(user.name === name) return user.status
+    })
+    let ready = statuses.forEach(status => {
+      if(status === 'ready') return true
+    })
+    if(ready) color = 'text-success'
+    console.log("STATUSJEE:",status)
+    return color
   }
 </script>
 
@@ -54,7 +86,20 @@
         <div id="messages" class="messages align-items-end">
           <ul class="messageTextList">
             {#each messages as message}
-              <li trasition:fade class="messageText">{message}</li>
+              {#if message.name === "Server"}
+                <li trasition:fade class="text-warning messageText">
+                  {message.name}: {message.message}
+                </li>
+              {:else}
+                <li trasition:fade class="messageText">
+                  <span class="{message.ready?'text-success':'text-normal'}">
+                    {message.name}:
+                  </span>
+                  <span>
+                     {message.message}
+                  </span>
+                </li>
+              {/if}
             {/each}
           </ul>
         </div>
@@ -77,11 +122,35 @@
         <div id="messages" class="messages align-items-end">
           <ul class="messageTextList">
             {#each users as user}
-              <li trasition:fade class="messageText">{user.name}</li>
+              <li
+                trasition:fade
+                class="{user.status == 'ready'
+                  ? 'text-success'
+                  : 'text-normal'} messageText"
+              >
+                {user.name}
+              </li>
             {/each}
           </ul>
-        </div></Card
-      >
+        </div>
+        <div class="row">
+          <div class="col-sm text-center p-0 m-0">
+            <button
+              on:click={onReady}
+              class="m-0 btn btn-sm {ready ? 'btn-danger' : 'btn-success'}"
+              >{ready ? "Unready" : "Ready"}</button
+            >
+          </div>
+          <div class="col-sm text-center p-0 m-0">
+            <button
+              on:click={onLeave}
+              disabled={ready}
+              class="m-0 btn btn-sm {ready ? 'btn-secondary' : 'btn-danger'}"
+              >Leave</button
+            >
+          </div>
+        </div>
+      </Card>
     </div>
   </div>
 </div>
