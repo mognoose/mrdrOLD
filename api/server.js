@@ -17,10 +17,10 @@ app.use(bodyParser.urlencoded({extended: true}));
 const db = require("./app/models");
 
 // For resync use this
-// db.sequelize.sync({ force: true }).then(() => {
-//   console.log("Drop and re-sync db.");
-// });
-db.sequelize.sync();
+db.sequelize.sync({ force: true }).then(() => {
+  console.log("Drop and re-sync db.");
+});
+// db.sequelize.sync();
 
 app.get("/", (req, res) => {
   res.json({ message: "MRDR API" });
@@ -48,44 +48,63 @@ const io = require("socket.io")(server, {
   }
 });
 
-async function getStatuses(room){
+
+
+async function checkReady(room){
   const players = await db.sequelize.query("SELECT * FROM `players`", { type: QueryTypes.SELECT })
   .then(
     console.log('success')
-  ).catch(console.log('error'))
+  ).catch(console.log('tääerror'))
   let ready = true
-  players.forEach(player => {
-    if(!player.ready) ready = false
+  players.forEach(p => {
+    if(!p.ready) ready = false
   });
-  if(ready){
-    const ids = players.map(player => player.id)
-    console.log("IDS: ", ids)
-    let murderer
-    // let doctor
-    // let cop
+  return {ready, players}
 
-    let key = Math.floor(Math.random()*ids.length)
-    murderer = ids[key]
-    ids.splice(key, 1)
+  // await db.sequelize.query("SELECT * FROM `players`", { type: QueryTypes.SELECT })
+  // .then(res => {
+  //   let ready = true
+  //   players = res.data
+  //   res.forEach(p => {
+  //     if(!p.ready) ready = false
+  //   });
+  //   return {ready, players}
+  // }
+  // ).catch(err => {
+  //   console.log('tääerror')
+  // })
 
-    key = Math.floor(Math.random()*ids.length)
-    doctor = ids[key]
-    ids.splice(key, 1)
 
-    key = Math.floor(Math.random()*ids.length)
-    cop = ids[key]
-    ids.splice(key, 1)
 
-    console.log("murderer: ", murderer)
-    console.log("doctor: ", doctor)
-    console.log("cop: ", cop)
+}
 
-    await db.sequelize.query("UPDATE `players` SET role = 'murderer' WHERE id = "+murderer, { type: QueryTypes.UPDATE })
-    await db.sequelize.query("UPDATE `players` SET role = 'doctor' WHERE id = "+doctor, { type: QueryTypes.UPDATE })
-    await db.sequelize.query("UPDATE `players` SET role = 'cop' WHERE id = "+cop, { type: QueryTypes.UPDATE })
-  }
-  // console.log(ready)
-  return ready
+async function dealRoles(room, players){
+  const ids = players.map(player => player.id)
+  console.log("IDS: ", ids)
+  let murderer
+  let doctor
+  let cop
+
+  let key = Math.floor(Math.random()*ids.length)
+  murderer = ids[key]
+  ids.splice(key, 1)
+
+  key = Math.floor(Math.random()*ids.length)
+  doctor = ids[key]
+  ids.splice(key, 1)
+
+  key = Math.floor(Math.random()*ids.length)
+  cop = ids[key]
+  ids.splice(key, 1)
+
+  console.log("murderer: ", murderer)
+  console.log("doctor: ", doctor)
+  console.log("cop: ", cop)
+
+  await db.sequelize.query("UPDATE `players` SET role = 'murderer' WHERE id = "+murderer, { type: QueryTypes.UPDATE })
+  await db.sequelize.query("UPDATE `players` SET role = 'doctor' WHERE id = "+doctor, { type: QueryTypes.UPDATE })
+  await db.sequelize.query("UPDATE `players` SET role = 'cop' WHERE id = "+cop, { type: QueryTypes.UPDATE })
+  await db.sequelize.query("UPDATE `players` SET alive = true WHERE room = '"+room+"'", { type: QueryTypes.UPDATE })
 
 }
 
@@ -94,13 +113,34 @@ let saved
 let investigated = false
 let murder = false
 let done = false
+let users = []
 
-io.on('connection', socket =>{
-  console.log(socket.id)
+io.on('connection', socket => {
+  let name = socket.handshake.headers.name
+  let room = socket.handshake.headers.room?.toUpperCase()
+  console.log(socket.id+': '+name+'@'+room)
+  if(name) socket.join(room)
+  else socket.disconnect()
+
+
+  let inList = users.forEach(user => {
+    if(user.name === name) return true
+    return false
+  })
+  if(!inList) users = [...users, {name, room, 'id': socket.id}]
+  roomusers = users.filter(user => user.room === room)
+  io.in(room).emit('USERS', roomusers)
+
+  socket.on('MESSAGE', data => {
+    if(data.name) io.in(room).emit('MESSAGE', data)
+  })
 
   socket.on('CHANGE_STATUS', async data => {
-    let ready = await getStatuses('test')
-    if(ready) io.emit('READY')
+    let check = await checkReady('test')
+    if(check.ready){
+      await dealRoles('test', check.players);
+      io.emit('READY')
+    }
     io.emit('STATUS', data)
   })
 
@@ -123,6 +163,9 @@ io.on('connection', socket =>{
       if(murder){
         await db.sequelize.query("UPDATE `players` SET alive = false WHERE id = "+parseInt(murdered), { type: QueryTypes.UPDATE })
       }
+      
+      const res = await db.sequelize.query("UPDATE `players` SET ready = false WHERE room = 'test'", { type: QueryTypes.UPDATE })
+      console.log(res)
       io.emit('SUNRISE', {murder, target: murdered})
       murdered = null
       saved = null
@@ -130,14 +173,11 @@ io.on('connection', socket =>{
       murder = false
       done = false
     }
-    console.log('murdered: '+murdered)
-    console.log('saved: '+saved)
-    console.log('murder: '+murder)
-    console.log('done: '+done)
-    console.log("investigated: "+investigated)
-
-    // let ready = await getStatuses('test')
-    // if(ready) io.emit('READY')
+  })
+  socket.on('DISCUSSION_READY', async data => {
+    let check = await checkReady('test')
+    if(check.ready) io.emit('NEXT_DAY')
+    io.emit('STATUS', data)
   })
 
 })

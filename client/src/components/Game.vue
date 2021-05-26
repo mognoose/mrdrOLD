@@ -80,13 +80,15 @@
 
       </div>
     </div>
-    <b-modal ref="message-modal" hide-footer :title="message.title">
+    <b-modal ref="message-modal" hide-footer :title="message.title+' ['+message.type+']'">
       <div class="d-block text-center">
-        <img :alt="player.role+' image'" :src="message.images[player.role]" class="w-50 m-5">
-        <h3>{{message.text}}</h3>
+        <img v-if="message.type === 'morning'" :alt="player.role+' image'" :src="message.images[message.img]" class="w-50 m-5">
+        <img v-else :alt="player.role+' image'" :src="message.images[player.role]" class="w-50 m-5">
+        <h3 v-html="message.text"></h3>
       </div>
       <div class="text-center">
         <b-button v-if="message.waitForCop" class="mt-3" variant="outline-success" @click="investigationReady()">COP OK ({{message.waitForCop}})</b-button>
+        <b-button v-else-if="message.type === 'morning'" class="mt-3" variant="outline-success" @click="discussionReady()"> ✔️ Discussion finished</b-button>
         <b-button v-else class="mt-3" variant="outline-success" @click="hideMessage">OK</b-button>
       </div>
     </b-modal>
@@ -103,12 +105,15 @@ export default {
     player: Object,
   },
   mounted(){
+    console.log(this.gameStatus)
+    console.log(this.player.alive)
     this.getPlayers();
     this.socket.on('STATUS',() => {
       this.getPlayers()
     })
     this.socket.on('READY', async () => {
       this.gameStatus = 'night'
+      this.player.alive = true
       await this.getPlayers()
       await this.showMessage({type: "role"})
 
@@ -117,7 +122,11 @@ export default {
       this.gameStatus = 'day'
       await this.getPlayers()
       await this.showMessage({type: "morning", data})
-
+    })
+    this.socket.on('NEXT_DAY', async () => {
+      this.hideMessage()
+      this.gameStatus = 'night'
+      await this.getPlayers()
     })
   },
   data(){
@@ -142,6 +151,8 @@ export default {
           murderer: require('/src/assets/images/murderer.png'),
           doctor: require('/src/assets/images/doctor.png'),
           cop: require('/src/assets/images/cop.png'),
+          hospital: require('/src/assets/images/hospital.jpg'),
+          rip: require('/src/assets/images/rip.jpg'),
         },
         waitForCop: false
       }
@@ -178,7 +189,8 @@ export default {
       if(message.type === "role"){
         this.message.title = "You are the "+this.message.roles[this.player.role]
         this.message.text = "Your goal is to "+this.message.goals[this.player.role]
-        
+        this.message.type = message.type
+
         this.$refs['message-modal'].show()
       }
       else if(message.type === "investigation"){
@@ -186,28 +198,33 @@ export default {
         this.message.text = "You found out that "+message.target
         this.message.text += (message.success ? " is the murderer" : " is not the murderer")
         this.message.waitForCop = true
+        this.message.type = message.type
         
         this.$refs['message-modal'].show()
       }
       else if(message.type === "murder"){
         this.message.title = "You stabbed "+message.target
         this.message.text = "You stabbed "+message.target
+        this.message.type = message.type
         
         this.$refs['message-modal'].show()
       }
       else if(message.type === "rescue"){
         this.message.title = "You rescued "+message.target
         this.message.text = "You saved the life of "+message.target
+        this.message.type = message.type
         
         this.$refs['message-modal'].show()
       }
       else if(message.type === "morning"){
         let victim = this.players.filter(player => player.id == message.data.target)
         victim = victim[0]
-        console.log(victim.name)
         this.message.title = "It is morning"
+        this.message.type = "morning"
+        this.message.img = message.data.murder ? 'rip' : 'hospital'
         if(message.data.murder) this.message.text = "Poor "+victim.name+" was found murdered in cold blood"
         else this.message.text = "Poor "+victim.name+" was stabbed last night. Luckily he survived"
+        this.message.text += "<br><br> Who is the murderer?<br><br>Discuss!"
         
         this.$refs['message-modal'].show()
       }
@@ -216,7 +233,9 @@ export default {
     hideMessage(){
       this.$refs['message-modal'].hide()
     },
-    murder(id){
+    async murder(id){
+      await axios.put('http://localhost:8080/api/players/'+this.player.id, {ready: false})
+
       const target = this.players.filter(player => player.id === id)
       this.showMessage({type: "murder", target: target[0].name})
       this.socket.emit('ACTION_DONE', {
@@ -224,7 +243,9 @@ export default {
         target: id,
       });
     },
-    rescue(id){
+    async rescue(id){
+      await axios.put('http://localhost:8080/api/players/'+this.player.id, {ready: false})
+
       const target = this.players.filter(player => player.id === id)
       this.showMessage({type: "rescue", target: target[0].name})
       this.socket.emit('ACTION_DONE', {
@@ -233,7 +254,9 @@ export default {
       });
     },
 
-    investigate(id){
+    async investigate(id){
+      await axios.put('http://localhost:8080/api/players/'+this.player.id, {ready: false})
+
       this.gameStatus = 'day'
       let investigation = {
         type: "investigation",
@@ -251,7 +274,12 @@ export default {
       });
       this.message.waitForCop = false
       this.hideMessage()
-    }
+    },
+    discussionReady(){
+      axios.put('http://localhost:8080/api/players/'+this.player.id, {ready: true})
+      this.player.ready = true
+      this.socket.emit('DISCUSSION_READY')
+    },
   }
 }
 </script>
